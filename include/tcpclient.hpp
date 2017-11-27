@@ -146,26 +146,12 @@ public:
         boost::array<char, 1024> buf;
         boost::system::error_code err;
 
-        size_t len = socket_.read_some(boost::asio::buffer(buf), err);
-        std::cout << "Client: Read " << buf.data() << " from server." << std::endl;
-
-        if (err == boost::asio::error::eof)
-        {
-            std::cout << "Client: Received EOF, shutting down..." << std::endl;
-            return; // Connection closed cleanly by peer.
-        }
-        else if (err)
-            throw boost::system::system_error(err); // Some other error.
-
-        if (std::string(buf.data()) != "ACK") {
-            std::cout << "Client: Expected ACK from server, but received " << buf.data() << std::endl;
-            return;
-        }
+        size_t len = socket_.write_some(boost::asio::buffer(id), err);
+        if (err) throw boost::system::system_error(err);
 
         for (int i = 0; i < 1000; ++i)
         {
-            len = socket_.write_some(boost::asio::buffer(id), err);
-            std::cout << "Client: Wrote " << id << " to server." << std::endl;
+            len = socket_.read_some(boost::asio::buffer(buf), err);
 
             if (err == boost::asio::error::eof)
             {
@@ -174,8 +160,12 @@ public:
             }
             else if (err)
                 throw boost::system::system_error(err); // Some other error.
+
+            std::cout << "Client: Read " << buf.data() << " from server." << std::endl;
+
         }
     }
+
 private:
     boost::shared_ptr<boost::asio::io_service::work> m_pWork;
     std::string song_id_;

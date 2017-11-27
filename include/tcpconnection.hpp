@@ -40,16 +40,10 @@ public:
 
     void start()
     {
-        boost::asio::async_write(socket_, boost::asio::buffer("ACK"),
-                                 boost::bind(&tcpconnection::handle_write, shared_from_this(),
-                                             boost::asio::placeholders::error,
-                                             boost::asio::placeholders::bytes_transferred));
-
         socket_.async_read_some(boost::asio::buffer(buf),
                                 boost::bind(&tcpconnection::handle_read, shared_from_this(),
                                             boost::asio::placeholders::error,
                                             boost::asio::placeholders::bytes_transferred));
-
     }
 
 private:
@@ -61,10 +55,24 @@ private:
     void handle_write(const boost::system::error_code& error,
                       size_t bytes_transferred)
     {
-        if (!error) std::cout << "Server: Wrote " << bytes_transferred << " bytes to client." << std::endl;
+        if (!error)
+        {
+            std::cout << "Server: Wrote " << item_id_ + " returned." << " from client." << std::endl;
+
+            boost::asio::async_write(socket_, boost::asio::buffer(item_id_ + " returned."),
+                                     boost::bind(&tcpconnection::handle_write, shared_from_this(),
+                                                 boost::asio::placeholders::error,
+                                                 boost::asio::placeholders::bytes_transferred));
+
+//            socket_.async_read_some(boost::asio::buffer(buf),
+//                                    boost::bind(&tcpconnection::handle_read, shared_from_this(),
+//                                                boost::asio::placeholders::error,
+//                                                boost::asio::placeholders::bytes_transferred));
+        }
         else
         {
-            std::cout << "Server: Error occurred in handle_write: " << error.message() << " " << error.value() << std::endl;
+            std::cout << "Server: Error occured in handle_read: " << error.message() << " " << error.value() << std::endl;
+            std::cout << socket_.is_open() << std::endl;
         }
     }
 
@@ -74,18 +82,20 @@ private:
         if (!error)
         {
             std::cout << "Server: Read " << buf.data() << " from client." << std::endl;
+            item_id_ = std::string(buf.data());
+            std::cout << "THE STRING IS: " << item_id_ << std::endl;
 
 //            message_ = "Hello";
 
-//            boost::asio::async_write(socket_, boost::asio::buffer(message_),
-//                                     boost::bind(&tcpconnection::handle_write, shared_from_this(),
-//                                                 boost::asio::placeholders::error,
-//                                                 boost::asio::placeholders::bytes_transferred));
+            boost::asio::async_write(socket_, boost::asio::buffer(item_id_ + " returned."),
+                                     boost::bind(&tcpconnection::handle_write, shared_from_this(),
+                                                 boost::asio::placeholders::error,
+                                                 boost::asio::placeholders::bytes_transferred));
 
-            socket_.async_read_some(boost::asio::buffer(buf),
-                                    boost::bind(&tcpconnection::handle_read, shared_from_this(),
-                                                boost::asio::placeholders::error,
-                                                boost::asio::placeholders::bytes_transferred));
+//            socket_.async_read_some(boost::asio::buffer(buf),
+//                                    boost::bind(&tcpconnection::handle_read, shared_from_this(),
+//                                                boost::asio::placeholders::error,
+//                                                boost::asio::placeholders::bytes_transferred));
         }
         else
         {
@@ -97,7 +107,7 @@ private:
 
 
     tcp::socket socket_;
-    std::string message_;
+    std::string item_id_;
     boost::array<char, 1024> buf;
 };
 
