@@ -40,15 +40,13 @@ public:
 
     void start()
     {
-        message_ = "Hello";
-
-        boost::asio::async_write(socket_, boost::asio::buffer(message_),
+        boost::asio::async_write(socket_, boost::asio::buffer("ACK"),
                                  boost::bind(&tcpconnection::handle_write, shared_from_this(),
                                              boost::asio::placeholders::error,
                                              boost::asio::placeholders::bytes_transferred));
 
         socket_.async_read_some(boost::asio::buffer(buf),
-                                boost::bind(&tcpconnection::handle_read, this,
+                                boost::bind(&tcpconnection::handle_read, shared_from_this(),
                                             boost::asio::placeholders::error,
                                             boost::asio::placeholders::bytes_transferred));
 
@@ -63,25 +61,38 @@ private:
     void handle_write(const boost::system::error_code& error,
                       size_t bytes_transferred)
     {
-        std::cout << "Server: Wrote " << bytes_transferred << " bytes to client." << std::endl;
+        if (!error) std::cout << "Server: Wrote " << bytes_transferred << " bytes to client." << std::endl;
+        else
+        {
+            std::cout << "Server: Error occurred in handle_write: " << error.message() << " " << error.value() << std::endl;
+        }
     }
 
     void handle_read(const boost::system::error_code& error,
                       size_t bytes_transferred)
     {
-        std::cout << "Server: Read " << buf.data() << " from client." << std::endl;
+        if (!error)
+        {
+            std::cout << "Server: Read " << buf.data() << " from client." << std::endl;
 
-        message_ = "Hello";
+//            message_ = "Hello";
 
-        boost::asio::async_write(socket_, boost::asio::buffer(message_),
-                                 boost::bind(&tcpconnection::handle_write, shared_from_this(),
-                                             boost::asio::placeholders::error,
-                                             boost::asio::placeholders::bytes_transferred));
+//            boost::asio::async_write(socket_, boost::asio::buffer(message_),
+//                                     boost::bind(&tcpconnection::handle_write, shared_from_this(),
+//                                                 boost::asio::placeholders::error,
+//                                                 boost::asio::placeholders::bytes_transferred));
 
-        socket_.async_read_some(boost::asio::buffer(buf),
-                                boost::bind(&tcpconnection::handle_read, this,
-                                            boost::asio::placeholders::error,
-                                            boost::asio::placeholders::bytes_transferred));
+            socket_.async_read_some(boost::asio::buffer(buf),
+                                    boost::bind(&tcpconnection::handle_read, shared_from_this(),
+                                                boost::asio::placeholders::error,
+                                                boost::asio::placeholders::bytes_transferred));
+        }
+        else
+        {
+            std::cout << "Server: Error occured in handle_read: " << error.message() << " " << error.value() << std::endl;
+            std::cout << socket_.is_open() << std::endl;
+        }
+
     }
 
 
