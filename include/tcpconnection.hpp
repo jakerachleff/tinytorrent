@@ -9,6 +9,7 @@
 
 #include <string>
 #include <iostream>
+#include <fstream>
 
 
 #include <boost/bind.hpp>
@@ -40,7 +41,7 @@ public:
 
     void start()
     {
-        socket_.async_read_some(boost::asio::buffer(buf),
+        socket_.async_read_some(boost::asio::buffer(read_buf),
                                 boost::bind(&tcpconnection::handle_read, shared_from_this(),
                                             boost::asio::placeholders::error,
                                             boost::asio::placeholders::bytes_transferred));
@@ -57,17 +58,16 @@ private:
     {
         if (!error)
         {
-            std::cout << "Server: Wrote " << item_id_ + " returned." << " from client." << std::endl;
+            if (filestream.is_open()) {
+                filestream.read(write_buf, 1024);
+                if (filestream.eof()) return;
 
-            boost::asio::async_write(socket_, boost::asio::buffer(item_id_ + " returned."),
-                                     boost::bind(&tcpconnection::handle_write, shared_from_this(),
-                                                 boost::asio::placeholders::error,
-                                                 boost::asio::placeholders::bytes_transferred));
-
-//            socket_.async_read_some(boost::asio::buffer(buf),
-//                                    boost::bind(&tcpconnection::handle_read, shared_from_this(),
-//                                                boost::asio::placeholders::error,
-//                                                boost::asio::placeholders::bytes_transferred));
+                std::cout << "Server: Wrote " << write_buf << " returned." << " from client." << std::endl;
+                boost::asio::async_write(socket_, boost::asio::buffer(write_buf),
+                                         boost::bind(&tcpconnection::handle_write, shared_from_this(),
+                                                     boost::asio::placeholders::error,
+                                                     boost::asio::placeholders::bytes_transferred));
+            }
         }
         else
         {
@@ -81,13 +81,14 @@ private:
     {
         if (!error)
         {
-            std::cout << "Server: Read " << buf.data() << " from client." << std::endl;
-            item_id_ = std::string(buf.data());
-            std::cout << "THE STRING IS: " << item_id_ << std::endl;
+            std::cout << "Server: Read " << read_buf.data() << " from client." << std::endl;
+            filestream.open("../files/.funtext");
+            filestream.read(write_buf, 1024);
+
 
 //            message_ = "Hello";
 
-            boost::asio::async_write(socket_, boost::asio::buffer(item_id_ + " returned."),
+            boost::asio::async_write(socket_, boost::asio::buffer(write_buf),
                                      boost::bind(&tcpconnection::handle_write, shared_from_this(),
                                                  boost::asio::placeholders::error,
                                                  boost::asio::placeholders::bytes_transferred));
@@ -105,10 +106,11 @@ private:
 
     }
 
-
+    std::ifstream filestream;
     tcp::socket socket_;
     std::string item_id_;
-    boost::array<char, 1024> buf;
+    boost::array<char, 1024> read_buf;
+    char write_buf[1024];
 };
 
 #endif //TINYTORRENT_TCPCONNECTION_H
