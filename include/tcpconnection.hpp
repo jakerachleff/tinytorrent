@@ -10,6 +10,7 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <thread>
 
 
 #include <boost/bind.hpp>
@@ -53,21 +54,40 @@ private:
     {
     }
 
+    void read_buffer_and_write()
+    {
+        if (filestream.is_open()) {
+            filestream.read(write_buf, 1024);
+            if (filestream.eof()) return;
+
+            std::cout << "Server: Wrote " << write_buf << " returned." << " from client." << std::endl;
+            boost::asio::async_write(socket_, boost::asio::buffer(write_buf),
+                                     boost::bind(&tcpconnection::handle_write, shared_from_this(),
+                                                 boost::asio::placeholders::error,
+                                                 boost::asio::placeholders::bytes_transferred));
+        }
+    }
+
     void handle_write(const boost::system::error_code& error,
                       size_t bytes_transferred)
     {
         if (!error)
         {
-            if (filestream.is_open()) {
-                filestream.read(write_buf, 1024);
-                if (filestream.eof()) return;
+            auto self(shared_from_this());
+            std::thread t;
+            t = std::thread([this, self]() {
+                if (filestream.is_open()) {
+                    filestream.read(write_buf, 1024);
+                    if (filestream.eof()) return;
 
-                std::cout << "Server: Wrote " << write_buf << " returned." << " from client." << std::endl;
-                boost::asio::async_write(socket_, boost::asio::buffer(write_buf),
-                                         boost::bind(&tcpconnection::handle_write, shared_from_this(),
-                                                     boost::asio::placeholders::error,
-                                                     boost::asio::placeholders::bytes_transferred));
-            }
+                    std::cout << "Server: Wrote " << write_buf << " returned." << " from client." << std::endl;
+                    boost::asio::async_write(socket_, boost::asio::buffer(write_buf),
+                                             boost::bind(&tcpconnection::handle_write, shared_from_this(),
+                                                         boost::asio::placeholders::error,
+                                                         boost::asio::placeholders::bytes_transferred));
+                }
+            });
+            t.detach();
         }
         else
         {

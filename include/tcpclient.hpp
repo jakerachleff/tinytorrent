@@ -154,7 +154,7 @@ public:
         for (;;)
         {
             len = socket_.read_some(boost::asio::buffer(buf), err);
-            std::this_thread::sleep_for (std::chrono::milliseconds(50));
+            std::this_thread::sleep_for (std::chrono::milliseconds(200));
             if (err == boost::asio::error::eof)
             {
                 std::cout << "Client: Sawa EOF, shutting down..." << std::endl;
