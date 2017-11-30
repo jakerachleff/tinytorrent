@@ -3,7 +3,7 @@ project(tinytorrent)
 
 set(CMAKE_CXX_STANDARD 11)
 
-find_package(Boost 1.57.0 REQUIRED COMPONENTS system filesystem )
+find_package(Boost 1.57.0 REQUIRED COMPONENTS system filesystem program_options )
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(... ${Boost_INCLUDE_DIRS})
 

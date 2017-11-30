@@ -82,7 +82,7 @@ private:
         if (!error)
         {
             std::cout << "Server: Read " << read_buf.data() << " from client." << std::endl;
-            filestream.open("../files/.funtext");
+            filestream.open("../files/" + std::string(read_buf.data()));
             filestream.read(write_buf, 1024);
 
 

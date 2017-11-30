@@ -5,8 +5,10 @@
 #ifndef TINYTORRENT_TCPCLIENT_H
 #define TINYTORRENT_TCPCLIENT_H
 
+#include <chrono>
 #include <iostream>
 #include <string>
+#include <thread>
 
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
@@ -149,10 +151,10 @@ public:
         size_t len = socket_.write_some(boost::asio::buffer(id), err);
         if (err) throw boost::system::system_error(err);
 
-        for (int i = 0; i < 1000; ++i)
+        for (;;)
         {
             len = socket_.read_some(boost::asio::buffer(buf), err);
-
+            std::this_thread::sleep_for (std::chrono::milliseconds(50));
             if (err == boost::asio::error::eof)
             {
                 std::cout << "Client: Sawa EOF, shutting down..." << std::endl;
