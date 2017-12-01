@@ -54,19 +54,12 @@ private:
     {
     }
 
-    void read_buffer_and_write()
+    void handle_write_complete(const boost::system::error_code& error,
+                               size_t bytes_transferred)
     {
-        if (filestream.is_open()) {
-            filestream.read(write_buf, 1024);
-            if (filestream.eof()) return;
-
-            std::cout << "Server: Wrote " << write_buf << " returned." << " from client." << std::endl;
-            boost::asio::async_write(socket_, boost::asio::buffer(write_buf),
-                                     boost::bind(&tcpconnection::handle_write, shared_from_this(),
-                                                 boost::asio::placeholders::error,
-                                                 boost::asio::placeholders::bytes_transferred));
-        }
+        std::cout << "Server: Finished writing to client." << std::endl;
     }
+
 
     void handle_write(const boost::system::error_code& error,
                       size_t bytes_transferred)
@@ -78,7 +71,15 @@ private:
             t = std::thread([this, self]() {
                 if (filestream.is_open()) {
                     filestream.read(write_buf, 1024);
-                    if (filestream.eof()) return;
+                    if (filestream.eof()) {
+                        std::cout << "Server: Wrote " << write_buf << " to client." << std::endl;
+                        boost::asio::async_write(socket_, boost::asio::buffer(write_buf, filestream.gcount()),
+                                                 boost::bind(&tcpconnection::handle_write_complete, shared_from_this(),
+                                                             boost::asio::placeholders::error,
+                                                             boost::asio::placeholders::bytes_transferred));
+                        return;
+                    }
+
 
                     std::cout << "Server: Wrote " << write_buf << " returned." << " from client." << std::endl;
                     boost::asio::async_write(socket_, boost::asio::buffer(write_buf),
@@ -103,15 +104,27 @@ private:
         {
             std::cout << "Server: Read " << read_buf.data() << " from client." << std::endl;
             filestream.open("../files/" + std::string(read_buf.data()));
-            filestream.read(write_buf, 1024);
 
+            auto self(shared_from_this());
+            std::thread t;
+            t = std::thread([this, self]() {
+                if (filestream.is_open()) {
+                    filestream.read(write_buf, 1024);
+                    if (filestream.eof()) return;
 
-//            message_ = "Hello";
+                    if (filestream)
+                        std::cout << "all characters read successfully." << std::endl;
+                    else
+                        std::cout << "error: only " << filestream.gcount() << " could be read" << std::endl;
 
-            boost::asio::async_write(socket_, boost::asio::buffer(write_buf),
-                                     boost::bind(&tcpconnection::handle_write, shared_from_this(),
-                                                 boost::asio::placeholders::error,
-                                                 boost::asio::placeholders::bytes_transferred));
+                    std::cout << "Server: Wrote " << write_buf << " returned." << " from client." << std::endl;
+                    boost::asio::async_write(socket_, boost::asio::buffer(write_buf),
+                                             boost::bind(&tcpconnection::handle_write, shared_from_this(),
+                                                         boost::asio::placeholders::error,
+                                                         boost::asio::placeholders::bytes_transferred));
+                }
+            });
+            t.detach();
 
 //            socket_.async_read_some(boost::asio::buffer(buf),
 //                                    boost::bind(&tcpconnection::handle_read, shared_from_this(),
