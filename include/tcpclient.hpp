@@ -32,6 +32,7 @@ public:
         boost::system::error_code connect_error = boost::asio::error::host_not_found;
 
         std::string output_filename = "../clientfiles/" + id;
+        std::cout << "Client output filename is: " << output_filename << std::endl;
         std::ofstream output_filestream;
         output_filestream.open(output_filename);
 
@@ -55,7 +56,7 @@ public:
         for (;;)
         {
             len = socket_.read_some(boost::asio::buffer(buf), err);
-            std::cout << "Client: Read " << buf.data() << " from server." << std::endl;
+            std::cout << "Client: Read " << len << "bytes from server." << std::endl;
             output_filestream.write(buf.data(), len);
 //            std::cout << len << std::endl;
             std::this_thread::sleep_for (std::chrono::milliseconds(1));

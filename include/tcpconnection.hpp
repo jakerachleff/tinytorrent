@@ -61,6 +61,8 @@ private:
     tcpconnection(boost::asio::io_service& io_service)
             : socket_(io_service)
     {
+        std::cout << "New TCP Connection Created" << std::endl;
+        read_buf.assign(0);
     }
 
     /* MUST HAVE write_queue_lock_ WHEN CALLING THIS FUNCTION. */
@@ -92,7 +94,6 @@ private:
             write_queue_lock_.unlock();
             if (filestream.eof()) break;
         }
-        std::cout << "Finished reading in " << filename << std::endl;
     }
 
 
