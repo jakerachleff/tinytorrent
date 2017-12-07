@@ -7,9 +7,11 @@
 #define TINYTORRENT_TCPCONNECTION_H
 
 
+#include <deque>
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <mutex>
 #include <thread>
 
 
@@ -23,6 +25,13 @@ using boost::asio::ip::tcp;
 
 
 using namespace boost::asio::ip;
+
+#define MESSAGE_SIZE 4096
+
+struct file_message {
+    char data[MESSAGE_SIZE];
+    size_t len;
+};
 
 class tcpconnection
         : public boost::enable_shared_from_this<tcpconnection>
@@ -54,10 +63,36 @@ private:
     {
     }
 
-    void handle_write_complete(const boost::system::error_code& error,
-                               size_t bytes_transferred)
+    /* MUST HAVE write_queue_lock_ WHEN CALLING THIS FUNCTION. */
+    void do_write()
     {
-        std::cout << "Server: Finished writing to client." << std::endl;
+        boost::asio::async_write(socket_,
+                                 boost::asio::buffer(write_queue_.front().data,
+                                                     write_queue_.front().len),
+                                 boost::bind(&tcpconnection::handle_write, shared_from_this(),
+                                             boost::asio::placeholders::error,
+                                             boost::asio::placeholders::bytes_transferred));
+    }
+
+    void queue_file_to_write(std::string filename)
+    {
+        std::ifstream filestream(filename);
+        while (true)
+        {
+            /* Read chunk of file into fm. */
+            file_message fm;
+            filestream.read(fm.data, MESSAGE_SIZE);
+            fm.len = filestream.gcount();
+
+            /* Write chunk of file into write queue. */
+            write_queue_lock_.lock();
+            bool write_in_progress = !write_queue_.empty();
+            write_queue_.push_back(fm);
+            if (!write_in_progress) do_write();
+            write_queue_lock_.unlock();
+            if (filestream.eof()) break;
+        }
+        std::cout << "Finished reading in " << filename << std::endl;
     }
 
 
@@ -66,35 +101,20 @@ private:
     {
         if (!error)
         {
-            auto self(shared_from_this());
-            std::thread t;
-            t = std::thread([this, self]() {
-                if (filestream.is_open()) {
-                    filestream.read(write_buf, 1024);
-                    if (filestream.eof()) {
-                        std::cout << "Server: Wrote " << write_buf << " to client." << std::endl;
-                        boost::asio::async_write(socket_, boost::asio::buffer(write_buf, filestream.gcount()),
-                                                 boost::bind(&tcpconnection::handle_write_complete, shared_from_this(),
-                                                             boost::asio::placeholders::error,
-                                                             boost::asio::placeholders::bytes_transferred));
-                        return;
-                    }
-
-
-                    std::cout << "Server: Wrote " << write_buf << " returned." << " from client." << std::endl;
-                    boost::asio::async_write(socket_, boost::asio::buffer(write_buf),
-                                             boost::bind(&tcpconnection::handle_write, shared_from_this(),
-                                                         boost::asio::placeholders::error,
-                                                         boost::asio::placeholders::bytes_transferred));
-                }
-            });
-            t.detach();
+            write_queue_lock_.lock();
+            write_queue_.pop_front();
+            if (!write_queue_.empty())
+            {
+                do_write();
+            }
+            write_queue_lock_.unlock();
         }
         else
         {
             std::cout << "Server: Error occured in handle_read: " << error.message() << " " << error.value() << std::endl;
             std::cout << socket_.is_open() << std::endl;
         }
+
     }
 
     void handle_read(const boost::system::error_code& error,
@@ -103,33 +123,14 @@ private:
         if (!error)
         {
             std::cout << "Server: Read " << read_buf.data() << " from client." << std::endl;
-            filestream.open("../files/" + std::string(read_buf.data()));
+            std::string filename = "../files/" + std::string(read_buf.data());
 
             auto self(shared_from_this());
             std::thread t;
-            t = std::thread([this, self]() {
-                if (filestream.is_open()) {
-                    filestream.read(write_buf, 1024);
-                    if (filestream.eof()) return;
-
-                    if (filestream)
-                        std::cout << "all characters read successfully." << std::endl;
-                    else
-                        std::cout << "error: only " << filestream.gcount() << " could be read" << std::endl;
-
-                    std::cout << "Server: Wrote " << write_buf << " returned." << " from client." << std::endl;
-                    boost::asio::async_write(socket_, boost::asio::buffer(write_buf),
-                                             boost::bind(&tcpconnection::handle_write, shared_from_this(),
-                                                         boost::asio::placeholders::error,
-                                                         boost::asio::placeholders::bytes_transferred));
-                }
+            t = std::thread([this, self, filename]() {
+                queue_file_to_write(filename);
             });
             t.detach();
-
-//            socket_.async_read_some(boost::asio::buffer(buf),
-//                                    boost::bind(&tcpconnection::handle_read, shared_from_this(),
-//                                                boost::asio::placeholders::error,
-//                                                boost::asio::placeholders::bytes_transferred));
         }
         else
         {
@@ -139,11 +140,12 @@ private:
 
     }
 
-    std::ifstream filestream;
+    std::mutex write_queue_lock_;
+    std::deque<file_message> write_queue_;
     tcp::socket socket_;
     std::string item_id_;
     boost::array<char, 1024> read_buf;
-    char write_buf[1024];
+    char write_buf[4096];
 };
 
 #endif //TINYTORRENT_TCPCONNECTION_H

@@ -46,7 +46,7 @@ public:
         std::cout << "Client: Successfully connected to socket" << std::endl;
 
 
-        boost::array<char, 1024> buf;
+        boost::array<char, 4096> buf;
         boost::system::error_code err;
 
         size_t len = socket_.write_some(boost::asio::buffer(id), err);
@@ -58,7 +58,7 @@ public:
             std::cout << "Client: Read " << buf.data() << " from server." << std::endl;
             output_filestream.write(buf.data(), len);
 //            std::cout << len << std::endl;
-            std::this_thread::sleep_for (std::chrono::milliseconds(200));
+            std::this_thread::sleep_for (std::chrono::milliseconds(1));
             if (err == boost::asio::error::eof)
             {
                 std::cout << "Client: Sawa EOF, shutting down..." << std::endl;
