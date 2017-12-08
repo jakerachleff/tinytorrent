@@ -28,7 +28,6 @@ public:
 
     void request_song(std::string id)
     {
-        song_id_ = id;
         boost::system::error_code connect_error = boost::asio::error::host_not_found;
 
         std::string output_filename = "../clientfiles/" + id;
@@ -76,7 +75,6 @@ public:
 
 private:
     boost::shared_ptr<boost::asio::io_service::work> m_pWork;
-    std::string song_id_;
     tcp::socket socket_;
     tcp::endpoint endpoint_;
 };

@@ -10,7 +10,7 @@ include_directories(... ${Boost_INCLUDE_DIRS})
 link_directories(... ${Boost_LIBRARY_DIRS})
 
 
-set(SOURCE_FILES main.cpp src/tcpserver.cpp include/tcpserver.hpp src/tcpconnection.cpp include/tcpconnection.hpp src/tcpclient.cpp include/tcpclient.hpp src/itemreader.cpp include/itemreader.hpp)
+set(SOURCE_FILES main.cpp src/tcpserver.cpp include/tcpserver.hpp src/tcpconnection.cpp include/tcpconnection.hpp src/tcpclient.cpp include/tcpclient.hpp)
 add_executable(tinytorrent ${SOURCE_FILES})
 
 target_link_libraries(tinytorrent ${Boost_LIBRARIES})
