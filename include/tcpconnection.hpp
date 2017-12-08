@@ -109,6 +109,7 @@ private:
                 do_write();
             }
             write_queue_lock_.unlock();
+            std::this_thread::sleep_for (std::chrono::milliseconds(3));
         }
         else
         {

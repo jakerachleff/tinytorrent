@@ -11,7 +11,7 @@
 void download_item(std::string item_id)
 {
     boost::asio::io_service client_io_service;
-    tcpclient client(client_io_service, "24.7.37.17", 12345);
+    tcpclient client(client_io_service, "10.0.0.6", 12345);
 
     std::thread clientIoThread;
     clientIoThread = std::thread([&client_io_service]() {

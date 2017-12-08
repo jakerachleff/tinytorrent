@@ -21,7 +21,7 @@ class tcpclient {
 public:
 
     tcpclient(boost::asio::io_service& io_service, std::string ip_addr, unsigned short port)
-        : socket_(io_service), endpoint_(boost::asio::ip::address::from_string("127.0.0.1"), 12345)
+        : socket_(io_service), endpoint_(boost::asio::ip::address::from_string(ip_addr), 12345)
     {
         m_pWork.reset(new boost::asio::io_service::work(io_service));
     }
@@ -53,16 +53,18 @@ public:
         size_t len = socket_.write_some(boost::asio::buffer(id), err);
         if (err) throw boost::system::system_error(err);
 
+        size_t total_len = 0;
         for (;;)
         {
             len = socket_.read_some(boost::asio::buffer(buf), err);
-            std::cout << "Client: Read " << len << "bytes from server." << std::endl;
+            total_len += len;
+//            std::cout << "Client: Read " << len << "bytes from server." << std::endl;
             output_filestream.write(buf.data(), len);
 //            std::cout << len << std::endl;
             std::this_thread::sleep_for (std::chrono::milliseconds(1));
             if (err == boost::asio::error::eof)
             {
-                std::cout << "Client: Sawa EOF, shutting down..." << std::endl;
+                std::cout << "Client: Download complete, read " << total_len << " bytes from server. Shutting down..." << std::endl;
                 break; // Connection closed cleanly by peer.
             }
             else if (err)
