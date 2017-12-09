@@ -7,11 +7,12 @@
 
 #include "include/tcpclient.hpp"
 #include "include/tcpserver.hpp"
+#include "include/ThreadPool.h"
 
-void download_item(std::string item_id)
+void download_item(std::string item_id, bool production_mode)
 {
     boost::asio::io_service client_io_service;
-    tcpclient client(client_io_service, "10.0.0.6", 12345);
+    tcpclient client(client_io_service, "10.34.100.205", 12345);
 
     std::thread clientIoThread;
     clientIoThread = std::thread([&client_io_service]() {
@@ -19,7 +20,7 @@ void download_item(std::string item_id)
         std::cout << "Client: Shutting down..." << std::endl;
     });
 
-    client.request_song(item_id);
+    client.request_song(item_id, production_mode);
     std::cout << "Main Thread: Request for " + item_id + " complete." << std::endl;
 
     client_io_service.stop();
@@ -48,20 +49,21 @@ void run_server()
         ioThread.join();
 }
 
-void run_client()
+void run_client(bool production_mode)
 {
     std::vector<std::thread> client_thread_vec;
     std::cout << "Please Request a File:" << std::endl;
 
     std::string command;
+
+    ThreadPool pool(std::thread::hardware_concurrency());
     while (std::getline(std::cin, command)) {
         std::cout << command << std::endl;
         if (command.size() == 0) break;
 
-        client_thread_vec.push_back(std::thread(download_item, command));
+        pool.enqueue(download_item, command, production_mode);
     }
 
-    for(auto &client_thread : client_thread_vec) client_thread.join();
 }
 
 int main(int argc, const char *argv[]) {
@@ -71,8 +73,8 @@ int main(int argc, const char *argv[]) {
         int opt;
         po::options_description desc("Options");
         desc.add_options()
-                ("server", po::value<bool>()->default_value(false), "Run server");
-
+                ("server", po::value<bool>()->default_value(false), "Run server")
+                ("production", po::value<bool>()->default_value(false), "Run server under production settings");
 
         po::variables_map vm;
         po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -83,8 +85,10 @@ int main(int argc, const char *argv[]) {
             return 1;
         }
 
+        bool production_mode = vm.count("production") && vm["production"].as<bool>();
+
         if (vm.count("server") && vm["server"].as<bool>() ) run_server();
-        else run_client();
+        else run_client(production_mode);
 
     }
     catch (std::exception& e)
