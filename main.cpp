@@ -56,19 +56,24 @@ void run_client(bool production_mode)
     /* For demo use, please set the IP address here, and then again in nodeinfo.hpp. */
     kdml::KademliaNode node("10.34.105.71", 8000);
     ThreadPool pool(std::thread::hardware_concurrency());
-    std::cout << "Please Request a File:" << std::endl;
+    std::cout << "Type 'put filename' to put a file, 'get filename' to get a file, or hit enter to quit" << std::endl;
 
     std::string command;
     while (std::getline(std::cin, command)) {
+        /* THIS IS BAD STYLE: 4 IS THE LENGTH OF PUT AND GET. */
+        if (command.find("get ") == 0) {
+            std::string song_name = command.substr(4, command.length());
+            node.get(song_name, [&pool, song_name, production_mode](kdml::Nodes peers){
+                pool.enqueue(download_item, song_name, production_mode, peers[0].getIpAddr(), peers[0].port);
+            });
+        } else if (command.find("put ") == 0) {
+            node.put(command.substr(4, command.length()));
+        }
 
-        node.get(command, [&pool, command, production_mode](kdml::Nodes peers){
-            pool.enqueue(download_item, command, production_mode, peers[0].getIpAddr(), peers[0].port);
-        });
-
-        std::cout << command << std::endl;
         if (command.size() == 0) break;
-
+        std::cout << "Type 'put filename' to put a file, 'get filename' to get a file, or hit enter to quit" << std::endl;
     }
+    std::cout << "Done running client" << std::endl;
 
 }
 
