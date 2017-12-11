@@ -37,7 +37,8 @@ public:
         output_filestream.open(output_filename);
 
 
-        std::cout << "About to connect to socket" << std::endl;
+        std::cout << "About to connect to socket with IP: " << endpoint_.address()
+                  << " and port: " << endpoint_.port() << std::endl;
         socket_.connect(endpoint_, connect_error);
 
 
