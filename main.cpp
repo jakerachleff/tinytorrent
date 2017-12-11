@@ -9,10 +9,12 @@
 #include "include/tcpserver.hpp"
 #include "include/ThreadPool.h"
 
-void download_item(std::string item_id, bool production_mode)
+#include "simple-kademlia/include/node/kademlianode.hpp"
+
+void download_item(std::string item_id, bool production_mode, std::string ip_addr, short port)
 {
     boost::asio::io_service client_io_service;
-    tcpclient client(client_io_service, "10.34.100.205", 12345);
+    tcpclient client(client_io_service, ip_addr, port);
 
     std::thread clientIoThread;
     clientIoThread = std::thread([&client_io_service]() {
@@ -51,17 +53,21 @@ void run_server()
 
 void run_client(bool production_mode)
 {
-    std::vector<std::thread> client_thread_vec;
+    /* For demo use, please set the IP address here, and then again in nodeinfo.hpp. */
+    kdml::KademliaNode node("10.34.105.71", 8000);
+    ThreadPool pool(std::thread::hardware_concurrency());
     std::cout << "Please Request a File:" << std::endl;
 
     std::string command;
-
-    ThreadPool pool(std::thread::hardware_concurrency());
     while (std::getline(std::cin, command)) {
+
+        node.get(command, [&pool, command, production_mode](kdml::Nodes peers){
+            pool.enqueue(download_item, command, production_mode, peers[0].getIpAddr(), peers[0].port);
+        });
+
         std::cout << command << std::endl;
         if (command.size() == 0) break;
 
-        pool.enqueue(download_item, command, production_mode);
     }
 
 }
