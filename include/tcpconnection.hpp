@@ -68,6 +68,7 @@ private:
     /* MUST HAVE write_queue_lock_ WHEN CALLING THIS FUNCTION. */
     void do_write()
     {
+
         boost::asio::async_write(socket_,
                                  boost::asio::buffer(write_queue_.front().data,
                                                      write_queue_.front().len),
@@ -78,7 +79,9 @@ private:
 
     void queue_file_to_write(std::string filename)
     {
+        filename = "/home/jestjest/senior/cs244b/CLionProjects/tinytorrent/" + filename;
         std::ifstream filestream(filename);
+
         while (true)
         {
             /* Read chunk of file into fm. */
@@ -124,7 +127,7 @@ private:
         if (!error)
         {
             std::cout << "Server: Read " << read_buf.data() << " from client." << std::endl;
-            std::string filename = "../files/" + std::string(read_buf.data());
+            std::string filename = "files/" + std::string(read_buf.data());
 
             auto self(shared_from_this());
             std::thread t;

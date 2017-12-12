@@ -4,6 +4,7 @@
 #include <boost/asio.hpp>
 #include <boost/array.hpp>
 #include <boost/program_options.hpp>
+#include <wait.h>
 
 #include "include/tcpclient.hpp"
 #include "include/tcpserver.hpp"
@@ -30,10 +31,10 @@ void download_item(std::string item_id, bool production_mode, std::string ip_add
         clientIoThread.join();
 }
 
-void run_server()
+void run_server(unsigned short port)
 {
     boost::asio::io_service io_service;
-    tcpserver server(io_service, 12345);
+    tcpserver server(io_service, port);
     std::cout << "Launching TCP Server" << std::endl;
 
     std::thread ioThread;
@@ -42,19 +43,20 @@ void run_server()
         std::cout << "Server: Shutting down..." << std::endl;
     });
 
-    std::cout << "Launched TCP Server, Please Hit Enter to Shut Down Server" << std::endl;
-    std::string enter_line;
-    std::getline(std::cin, enter_line);
+    std::cout << "Launched TCP Server. Kill client to shut down." << std::endl;
+    waitpid(-1, nullptr, 0);
 
     io_service.stop();
     if (ioThread.joinable())
         ioThread.join();
 }
 
-void run_client(bool production_mode)
+void run_client(bool production_mode, std::string ip, unsigned short port)
 {
-    /* For demo use, please set the IP address here, and then again in nodeinfo.hpp. */
-    kdml::KademliaNode node("10.34.105.71", 8000);
+    /* For demo use, please set the IP address here */
+    kdml::KademliaNode node(ip, port);
+    node.bootstrap({"127.0.0.1", 8000});
+
     ThreadPool pool(std::thread::hardware_concurrency());
     std::cout << "Type 'put filename' to put a file, 'get filename' to get a file, or hit enter to quit" << std::endl;
 
@@ -84,7 +86,8 @@ int main(int argc, const char *argv[]) {
         int opt;
         po::options_description desc("Options");
         desc.add_options()
-                ("server", po::value<bool>()->default_value(false), "Run server")
+                ("ip", po::value<std::string>()->default_value("127.0.0.1"), "IP address")
+                ("port", po::value<unsigned short>()->default_value(8000), "Port to send/receive")
                 ("production", po::value<bool>()->default_value(false), "Run server under production settings");
 
         po::variables_map vm;
@@ -98,9 +101,13 @@ int main(int argc, const char *argv[]) {
 
         bool production_mode = vm.count("production") && vm["production"].as<bool>();
 
-        if (vm.count("server") && vm["server"].as<bool>() ) run_server();
-        else run_client(production_mode);
+        int pid = fork();
 
+        if (pid == 0) {
+            run_client(production_mode, vm["ip"].as<std::string>(), vm["port"].as<unsigned short>());
+        } else {
+            run_server(vm["port"].as<unsigned short>());
+        }
     }
     catch (std::exception& e)
     {

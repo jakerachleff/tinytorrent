@@ -1,0 +1,3 @@
+[submodule "simple-kademlia"]
+	path = simple-kademlia
+	url = https://github.com/jakerachleff/simple-kademlia
