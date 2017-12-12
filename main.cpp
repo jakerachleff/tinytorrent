@@ -1,5 +1,4 @@
 #include <iostream>
-#include <string>
 #include <thread>
 #include <boost/asio.hpp>
 #include <boost/array.hpp>
@@ -12,10 +11,10 @@
 
 #include "simple-kademlia/include/node/kademlianode.hpp"
 
-void download_item(std::string item_id, bool production_mode, std::string ip_addr, short port)
-{
+void download_item(const std::string &item_id, bool production_mode,
+                   std::string ip_addr, unsigned short port) {
     boost::asio::io_service client_io_service;
-    tcpclient client(client_io_service, ip_addr, port);
+    tcpclient client(client_io_service, std::move(ip_addr), port);
 
     std::thread clientIoThread;
     clientIoThread = std::thread([&client_io_service]() {
@@ -31,8 +30,7 @@ void download_item(std::string item_id, bool production_mode, std::string ip_add
         clientIoThread.join();
 }
 
-void run_server(unsigned short port)
-{
+void run_server(unsigned short port) {
     boost::asio::io_service io_service;
     tcpserver server(io_service, port);
     std::cout << "Launching TCP Server" << std::endl;
@@ -51,10 +49,10 @@ void run_server(unsigned short port)
         ioThread.join();
 }
 
-void run_client(bool production_mode, std::string ip, unsigned short port)
-{
-    /* For demo use, please set the IP address here */
-    kdml::KademliaNode node(ip, port);
+void run_client(bool production_mode, std::string ip, unsigned short port) {
+    kdml::KademliaNode node(std::move(ip), port);
+
+    /* For demo use, please set the bootstrap IP/port here*/
     node.bootstrap({"127.0.0.1", 8000});
 
     ThreadPool pool(std::thread::hardware_concurrency());
@@ -65,14 +63,17 @@ void run_client(bool production_mode, std::string ip, unsigned short port)
         /* THIS IS BAD STYLE: 4 IS THE LENGTH OF PUT AND GET. */
         if (command.find("get ") == 0) {
             std::string song_name = command.substr(4, command.length());
-            node.get(song_name, [&pool, song_name, production_mode](kdml::Nodes peers){
-                pool.enqueue(download_item, song_name, production_mode, peers[0].getIpAddr(), peers[0].port);
+            node.get(song_name, [&pool, song_name, production_mode](kdml::Nodes peers) {
+                if (!peers.empty()) {
+                    // Just try the first peer for now.
+                    pool.enqueue(download_item, song_name, production_mode, peers[0].getIpAddr(), peers[0].port);
+                }
             });
         } else if (command.find("put ") == 0) {
             node.put(command.substr(4, command.length()));
         }
 
-        if (command.size() == 0) break;
+        if (command.empty()) break;
         std::cout << "Type 'put filename' to put a file, 'get filename' to get a file, or hit enter to quit" << std::endl;
     }
     std::cout << "Done running client" << std::endl;
