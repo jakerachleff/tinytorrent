@@ -61,10 +61,7 @@ public:
         {
             len = socket_.read_some(boost::asio::buffer(buf), err);
             total_len += len;
-//            std::cout << "Client: Read " << len << "bytes from server." << std::endl;
             output_filestream.write(buf.data(), len);
-//            std::cout << len << std::endl;
-            std::this_thread::sleep_for (std::chrono::milliseconds(1));
             if (err == boost::asio::error::eof)
             {
                 std::cout << "Client: Download complete, read " << total_len << " bytes from server. Shutting down..." << std::endl;

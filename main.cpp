@@ -11,6 +11,15 @@
 
 #include "simple-kademlia/include/node/kademlianode.hpp"
 
+
+/*
+ * Creates a new client connection and downloads an item requested by the Client.
+ *
+ * @param item_id: string name of the item requested.
+ * @param production_mode: bool allows for settings to change between Dev and Prod
+ * @param peers: kdml::Nodes A vector of Kademlia NodeInfo objects that Kademlia
+ * thinks currently stores the value for item_id
+ */
 void download_item(const std::string &item_id, bool production_mode, kdml::Nodes peers) {
     for (int i = 0; i < peers.size(); ++i) {
         boost::asio::io_service client_io_service;
@@ -28,20 +37,27 @@ void download_item(const std::string &item_id, bool production_mode, kdml::Nodes
         if(clientIoThread.joinable())
             clientIoThread.join();
 
-        if (request_complete)
-        {
+        if (request_complete) {
             std::cout << "Main Thread: Request for " + item_id + " complete." << std::endl;
             break;
         }
     }
-
+    std::cout << "Main Thread: Request for " + item_id + " unsuccessful." << std::endl;
 }
 
+/*
+ * Boots up a TinyTorrent Server to serve files to peers.
+ *
+ * @parm port: short specifying port for server
+ *
+ */
 void run_server(unsigned short port) {
     boost::asio::io_service io_service;
     tcpserver server(io_service, port);
     std::cout << "Launching TCP Server" << std::endl;
 
+    /* Run io_service on separate thread - io_service handles all async calls
+     * to our server through Boost's ASIO library. */
     std::thread ioThread;
     ioThread = std::thread([&io_service]() {
         io_service.run();
@@ -56,25 +72,30 @@ void run_server(unsigned short port) {
         ioThread.join();
 }
 
+/*
+ * Boots up a TinyTorrent Client, asking the user for put and get commands.
+ *
+ * @param production_mode: boolean that allows for modifications to
+ * TinyTorrent when run in Dev or Prod
+ * @param ip: string specifying ip address for client's Kademlia Node
+ * @parm port: short specifying port for client's Kademlia Node
+ */
 void run_client(bool production_mode, std::string ip, unsigned short port) {
     kdml::KademliaNode node(std::move(ip), port);
 
-    /* For demo use, please set the bootstrap IP/port here*/
+    /* Please set the IP Address and the Port for the Bootstrap node here. */
     node.bootstrap({"127.0.0.1", 8000});
 
+    /* Create a threadpool for all client download connections. */
     ThreadPool pool(std::thread::hardware_concurrency());
     std::cout << "Type 'put filename' to put a file, 'get filename' to get a file, or hit enter to quit" << std::endl;
 
     std::string command;
     while (std::getline(std::cin, command)) {
-        /* THIS IS BAD STYLE: 4 IS THE LENGTH OF PUT AND GET. */
         if (command.find("get ") == 0) {
             std::string song_name = command.substr(4, command.length());
             node.get(song_name, [&pool, song_name, production_mode](kdml::Nodes peers) {
-                if (!peers.empty()) {
-                    // Just try the first peer for now.
-                    pool.enqueue(download_item, song_name, production_mode, peers);
-                }
+                if (!peers.empty()) pool.enqueue(download_item, song_name, production_mode, peers);
             });
         } else if (command.find("put ") == 0) {
             node.put(command.substr(4, command.length()));
