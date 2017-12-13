@@ -26,7 +26,7 @@ public:
         m_pWork.reset(new boost::asio::io_service::work(io_service));
     }
 
-    void request_song(std::string id, bool production_mode)
+    bool request_song(std::string id, bool production_mode)
     {
         boost::system::error_code connect_error = boost::asio::error::host_not_found;
 
@@ -42,8 +42,11 @@ public:
 
 
         if (connect_error)
-            throw boost::system::system_error(connect_error);
-
+        {
+            std::cout << "Client: Could not connect to socket with IP: "
+                      << endpoint_.address() << " and port " << endpoint_.port() << std::endl;
+            return false;
+        }
         std::cout << "Client: Successfully connected to socket" << std::endl;
 
 
@@ -72,6 +75,7 @@ public:
 
         }
         output_filestream.close();
+        return true;
     }
 
 private:

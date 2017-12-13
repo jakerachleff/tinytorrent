@@ -3,7 +3,7 @@
 #include <boost/asio.hpp>
 #include <boost/array.hpp>
 #include <boost/program_options.hpp>
-#include <wait.h>
+#include <sys/wait.h>
 
 #include "include/tcpclient.hpp"
 #include "include/tcpserver.hpp"
@@ -11,23 +11,30 @@
 
 #include "simple-kademlia/include/node/kademlianode.hpp"
 
-void download_item(const std::string &item_id, bool production_mode,
-                   std::string ip_addr, unsigned short port) {
-    boost::asio::io_service client_io_service;
-    tcpclient client(client_io_service, std::move(ip_addr), port);
+void download_item(const std::string &item_id, bool production_mode, kdml::Nodes peers) {
+    for (int i = 0; i < peers.size(); ++i) {
+        boost::asio::io_service client_io_service;
+        tcpclient client(client_io_service, std::move(peers[i].getIpAddr()), peers[i].port);
 
-    std::thread clientIoThread;
-    clientIoThread = std::thread([&client_io_service]() {
-        client_io_service.run();
-        std::cout << "Client: Shutting down..." << std::endl;
-    });
+        std::thread clientIoThread;
+        clientIoThread = std::thread([&client_io_service]() {
+            client_io_service.run();
+            std::cout << "Client: Shutting down..." << std::endl;
+        });
 
-    client.request_song(item_id, production_mode);
-    std::cout << "Main Thread: Request for " + item_id + " complete." << std::endl;
+        bool request_complete = client.request_song(item_id, production_mode);
 
-    client_io_service.stop();
-    if(clientIoThread.joinable())
-        clientIoThread.join();
+        client_io_service.stop();
+        if(clientIoThread.joinable())
+            clientIoThread.join();
+
+        if (request_complete)
+        {
+            std::cout << "Main Thread: Request for " + item_id + " complete." << std::endl;
+            break;
+        }
+    }
+
 }
 
 void run_server(unsigned short port) {
@@ -66,7 +73,7 @@ void run_client(bool production_mode, std::string ip, unsigned short port) {
             node.get(song_name, [&pool, song_name, production_mode](kdml::Nodes peers) {
                 if (!peers.empty()) {
                     // Just try the first peer for now.
-                    pool.enqueue(download_item, song_name, production_mode, peers[0].getIpAddr(), peers[0].port);
+                    pool.enqueue(download_item, song_name, production_mode, peers);
                 }
             });
         } else if (command.find("put ") == 0) {
